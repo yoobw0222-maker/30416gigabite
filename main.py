@@ -286,6 +286,24 @@ else:
                 arcs = itemList.map(item => (item.prob / totalProb) * 2 * Math.PI);
             }}
 
+            // 현재 룰렛 회전 각도(currentAngle)에서 12시 방향 바늘이 가리키는 항목의 인덱스를 계산하는 핵심 함수
+            function getCurrentIndex() {{
+                // Canvas는 3시 방향이 0도입니다.
+                // 12시 바늘 위치는 270도(1.5 * PI) 위치입니다.
+                // 룰렛판이 currentAngle만큼 시계방향으로 도는 것은 좌표계상 반시계방향 회전과 같습니다.
+                const twoPi = 2 * Math.PI;
+                const pointerAngle = (1.5 * Math.PI - (currentAngle % twoPi) + twoPi * 10) % twoPi;
+
+                let accumulatedAngle = 0;
+                for (let i = 0; i < itemList.length; i++) {{
+                    accumulatedAngle += arcs[i];
+                    if (pointerAngle < accumulatedAngle) {{
+                        return i;
+                    }}
+                }}
+                return itemList.length - 1;
+            }}
+
             function drawWheel() {{
                 calculateArcs();
                 ctx.clearRect(0, 0, 380, 380);
@@ -397,19 +415,7 @@ else:
                         currentAngle = startAngle + (totalRotation * easeOut);
                         drawWheel();
 
-                        const normalizedAngle = (2 * Math.PI - (currentAngle % (2 * Math.PI))) % (2 * Math.PI);
-                        const pointerAngle = (normalizedAngle + Math.PI / 2) % (2 * Math.PI);
-                        
-                        let accumulatedAngle = 0;
-                        let currentIndex = 0;
-                        for (let i = 0; i < itemList.length; i++) {{
-                            accumulatedAngle += arcs[i];
-                            if (pointerAngle <= accumulatedAngle) {{
-                                currentIndex = i;
-                                break;
-                            }}
-                        }}
-
+                        const currentIndex = getCurrentIndex();
                         if (currentIndex !== lastArcIndex) {{
                             playTickSound();
                             lastArcIndex = currentIndex;
@@ -420,18 +426,7 @@ else:
                         currentAngle = startAngle + totalRotation;
                         drawWheel();
                         
-                        const normalizedAngle = (2 * Math.PI - (currentAngle % (2 * Math.PI))) % (2 * Math.PI);
-                        const pointerAngle = (normalizedAngle + Math.PI / 2) % (2 * Math.PI);
-                        
-                        let accumulatedAngle = 0;
-                        let winningIndex = 0;
-                        for (let i = 0; i < itemList.length; i++) {{
-                            accumulatedAngle += arcs[i];
-                            if (pointerAngle <= accumulatedAngle) {{
-                                winningIndex = i;
-                                break;
-                            }}
-                        }}
+                        const winningIndex = getCurrentIndex();
                         
                         playWinSound();
                         confetti({{ particleCount: 100, spread: 70, origin: {{ y: 0.6 }} }});
@@ -443,15 +438,11 @@ else:
                         historyData.push(winText);
                         updateHistory();
 
-                        // 자동 지우기 및 확률 비율 유지 재분배
                         if (autoRemove && itemList.length > 1) {{
                             setTimeout(() => {{
                                 itemList.splice(winningIndex, 1);
                                 
-                                // 남은 항목들의 원래 확률 합계 계산
                                 const remainingTotal = itemList.reduce((sum, item) => sum + item.prob, 0);
-                                
-                                // 100% 기준으로 비율 맞춰 재조정
                                 if (remainingTotal > 0) {{
                                     itemList.forEach(item => {{
                                         item.prob = (item.prob / remainingTotal) * 100;
