@@ -286,11 +286,7 @@ else:
                 arcs = itemList.map(item => (item.prob / totalProb) * 2 * Math.PI);
             }}
 
-            // 현재 룰렛 회전 각도(currentAngle)에서 12시 방향 바늘이 가리키는 항목의 인덱스를 계산하는 핵심 함수
             function getCurrentIndex() {{
-                // Canvas는 3시 방향이 0도입니다.
-                // 12시 바늘 위치는 270도(1.5 * PI) 위치입니다.
-                // 룰렛판이 currentAngle만큼 시계방향으로 도는 것은 좌표계상 반시계방향 회전과 같습니다.
                 const twoPi = 2 * Math.PI;
                 const pointerAngle = (1.5 * Math.PI - (currentAngle % twoPi) + twoPi * 10) % twoPi;
 
@@ -316,6 +312,7 @@ else:
 
                 let startAngle = currentAngle;
 
+                // 1. 원판 조각 그리기
                 for (let i = 0; i < numItems; i++) {{
                     const arc = arcs[i];
                     const endAngle = startAngle + arc;
@@ -325,52 +322,83 @@ else:
                     ctx.moveTo(centerX, centerY);
                     ctx.arc(centerX, centerY, radius, startAngle, endAngle);
                     ctx.fill();
+                    ctx.strokeStyle = "#ffffff";
+                    ctx.lineWidth = 2;
                     ctx.stroke();
 
                     startAngle = endAngle;
                 }}
 
+                // 2. 텍스트 라벨 그리기 (개선된 가시성 로직 적용)
                 startAngle = currentAngle;
                 for (let i = 0; i < numItems; i++) {{
                     const arc = arcs[i];
                     const midAngle = startAngle + arc / 2;
                     const displayName = `${{itemList[i].name}} (${{itemList[i].prob.toFixed(1)}}%)`;
 
-                    if (arc >= 0.25) {{
+                    // 부채꼴 각도 비율에 따라 폰트 크기 동적 조절 (최소 8px, 최대 13px)
+                    const fontSize = Math.max(8, Math.min(13, Math.floor(arc * 18)));
+
+                    if (arc >= 0.15) {{ // 원판 내부 표시
                         ctx.save();
-                        ctx.fillStyle = "#ffffff";
-                        ctx.font = "bold 11px sans-serif";
-                        ctx.translate(centerX + Math.cos(midAngle) * (radius * 0.65), centerY + Math.sin(midAngle) * (radius * 0.65));
+                        ctx.translate(centerX + Math.cos(midAngle) * (radius * 0.6), centerY + Math.sin(midAngle) * (radius * 0.6));
                         ctx.rotate(midAngle + Math.PI / 2);
                         
-                        let text = displayName;
-                        if (text.length > 10) text = text.substring(0, 8) + "..";
+                        ctx.font = `bold ${{fontSize}}px sans-serif`;
                         
-                        ctx.fillText(text, -ctx.measureText(text).width / 2, 0);
+                        let text = displayName;
+                        // 공간이 좁을 경우 줄임표 처리
+                        if (arc < 0.35 && text.length > 8) {{
+                            text = text.substring(0, 6) + "..";
+                        }}
+
+                        const textWidth = ctx.measureText(text).width;
+
+                        // 글자가 원판 색상에 묻히지 않도록 배경 박스 그리기
+                        ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+                        ctx.fillRect(-textWidth / 2 - 3, -fontSize / 2 - 2, textWidth + 6, fontSize + 4);
+
+                        // 글자 출력
+                        ctx.fillStyle = "#111111";
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        ctx.fillText(text, 0, 0);
                         ctx.restore();
-                    }} else {{
+
+                    }} else {{ // 아주 좁은 구역(확률이 매우 적을 때)은 외부 지시선 처리
                         const lineStartX = centerX + Math.cos(midAngle) * (radius - 5);
                         const lineStartY = centerY + Math.sin(midAngle) * (radius - 5);
-                        const lineEndX = centerX + Math.cos(midAngle) * (radius + 18);
-                        const lineEndY = centerY + Math.sin(midAngle) * (radius + 18);
+                        const lineEndX = centerX + Math.cos(midAngle) * (radius + 22);
+                        const lineEndY = centerY + Math.sin(midAngle) * (radius + 22);
 
                         ctx.beginPath();
-                        ctx.strokeStyle = "#333333";
+                        ctx.strokeStyle = "#222222";
                         ctx.lineWidth = 1.5;
                         ctx.moveTo(lineStartX, lineStartY);
                         ctx.lineTo(lineEndX, lineEndY);
                         ctx.stroke();
 
                         ctx.save();
-                        ctx.fillStyle = "#333333";
-                        ctx.font = "bold 10px sans-serif";
+                        ctx.font = "bold 11px sans-serif";
                         
                         const isRightSide = Math.cos(midAngle) >= 0;
-                        ctx.textAlign = isRightSide ? "left" : "right";
-                        
-                        const textX = lineEndX + (isRightSide ? 4 : -4);
-                        const textY = lineEndY + 3;
+                        const textX = lineEndX + (isRightSide ? 5 : -5);
+                        const textY = lineEndY;
 
+                        const textWidth = ctx.measureText(displayName).width;
+
+                        // 외부 라벨 배경
+                        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+                        ctx.fillRect(
+                            isRightSide ? textX - 2 : textX - textWidth - 2, 
+                            textY - 8, 
+                            textWidth + 4, 
+                            14
+                        );
+
+                        ctx.fillStyle = "#111111";
+                        ctx.textAlign = isRightSide ? "left" : "right";
+                        ctx.textBaseline = "middle";
                         ctx.fillText(displayName, textX, textY);
                         ctx.restore();
                     }}
