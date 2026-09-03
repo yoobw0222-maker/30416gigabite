@@ -67,22 +67,24 @@ else:
     <head>
         <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
         <style>
-            .container {{
+            .app-wrapper {{
                 display: flex;
-                flex-wrap: wrap;
+                flex-direction: row;
                 justify-content: center;
+                align-items: flex-start;
                 gap: 20px;
                 font-family: sans-serif;
+                width: 100%;
             }}
-            .roulette-box {{
+            .roulette-section {{
                 display: flex;
                 flex-direction: column;
                 align-items: center;
             }}
             .wheel-wrapper {{
                 position: relative;
-                width: 400px;
-                height: 400px;
+                width: 380px;
+                height: 380px;
             }}
             .pointer {{
                 position: absolute;
@@ -107,52 +109,49 @@ else:
                 gap: 10px;
             }}
             .btn-spin {{
-                padding: 12px 30px;
-                font-size: 18px;
+                padding: 10px 26px;
+                font-size: 16px;
                 font-weight: bold;
                 background-color: #FF4B4B;
                 color: white;
                 border: none;
                 border-radius: 8px;
                 cursor: pointer;
-                transition: background 0.2s;
-            }}
-            .btn-spin:hover {{
-                background-color: #e03a3a;
             }}
             .btn-spin:disabled {{
                 background-color: #ccc;
                 cursor: not-allowed;
             }}
             .toggle-btn {{
-                padding: 8px 16px;
-                font-size: 14px;
+                padding: 6px 14px;
+                font-size: 13px;
                 font-weight: bold;
                 border-radius: 20px;
                 border: 2px solid #333;
                 background-color: #4CAF50;
                 color: white;
                 cursor: pointer;
-                transition: all 0.2s;
             }}
             .toggle-btn.off {{
                 background-color: #888;
                 border-color: #888;
             }}
             #result {{
-                font-size: 17px;
+                font-size: 16px;
                 font-weight: bold;
                 color: #2E7D32;
                 min-height: 24px;
                 text-align: center;
             }}
-            .history-box {{
-                width: 260px;
+            /* 우측 상단 기록 박스 */
+            .history-section {{
+                width: 240px;
                 height: 480px;
                 background: #f8f9fa;
-                border: 1px solid #e0e0e0;
+                border: 2px solid #e0e0e0;
                 border-radius: 10px;
-                padding: 15px;
+                padding: 12px;
+                box-sizing: border-box;
                 display: flex;
                 flex-direction: column;
             }}
@@ -160,18 +159,18 @@ else:
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 10px;
                 border-bottom: 2px solid #ddd;
-                padding-bottom: 8px;
+                padding-bottom: 6px;
+                margin-bottom: 8px;
             }}
             .history-header h3 {{
                 margin: 0;
-                font-size: 16px;
+                font-size: 15px;
                 color: #333;
             }}
             .btn-clear {{
-                padding: 4px 8px;
-                font-size: 12px;
+                padding: 3px 8px;
+                font-size: 11px;
                 background-color: #6c757d;
                 color: white;
                 border: none;
@@ -182,7 +181,7 @@ else:
                 flex: 1;
                 margin: 0;
                 padding-left: 20px;
-                font-size: 14px;
+                font-size: 13px;
                 color: #333;
                 overflow-y: auto;
                 line-height: 1.6;
@@ -190,25 +189,25 @@ else:
         </style>
     </head>
     <body>
-        <div class="container">
-            <!-- 룰렛 영역 -->
-            <div class="roulette-box">
+        <div class="app-wrapper">
+            <!-- 좌측: 룰렛 및 컨트롤 -->
+            <div class="roulette-section">
                 <div class="wheel-wrapper">
                     <div class="pointer"></div>
-                    <canvas id="wheel" width="400" height="400"></canvas>
+                    <canvas id="wheel" width="380" height="380"></canvas>
                 </div>
                 
                 <div class="control-panel">
                     <button id="spinBtn" class="btn-spin" onclick="spin()">룰렛 돌리기! 🎰</button>
                     <button id="toggleBtn" class="toggle-btn" onclick="toggleAutoRemove()">
-                        🎯 자동 지우기 옵션: ON
+                        🎯 자동 지우기: ON
                     </button>
                     <div id="result"></div>
                 </div>
             </div>
 
-            <!-- 당첨 기록 영역 -->
-            <div class="history-box">
+            <!-- 우측 상단: 기록 목록 -->
+            <div class="history-section">
                 <div class="history-header">
                     <h3>📜 당첨 기록</h3>
                     <button class="btn-clear" onclick="clearHistory()">초기화</button>
@@ -226,9 +225,9 @@ else:
             const ctx = canvas.getContext('2d');
             const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#E7E9ED', '#76D7C4'];
 
-            const centerX = 200;
-            const centerY = 200;
-            const radius = 130;
+            const centerX = 190;
+            const centerY = 190;
+            const radius = 125;
 
             let currentAngle = 0;
             let isSpinning = false;
@@ -274,10 +273,10 @@ else:
                 autoRemove = !autoRemove;
                 const btn = document.getElementById('toggleBtn');
                 if (autoRemove) {{
-                    btn.innerText = "🎯 자동 지우기 옵션: ON";
+                    btn.innerText = "🎯 자동 지우기: ON";
                     btn.classList.remove('off');
                 }} else {{
-                    btn.innerText = "🎯 자동 지우기 옵션: OFF";
+                    btn.innerText = "🎯 자동 지우기: OFF";
                     btn.classList.add('off');
                 }}
             }}
@@ -289,7 +288,7 @@ else:
 
             function drawWheel() {{
                 calculateArcs();
-                ctx.clearRect(0, 0, 400, 400);
+                ctx.clearRect(0, 0, 380, 380);
                 const numItems = itemList.length;
 
                 if (numItems === 0) {{
@@ -322,20 +321,20 @@ else:
                     if (arc >= 0.25) {{
                         ctx.save();
                         ctx.fillStyle = "#ffffff";
-                        ctx.font = "bold 12px sans-serif";
+                        ctx.font = "bold 11px sans-serif";
                         ctx.translate(centerX + Math.cos(midAngle) * (radius * 0.65), centerY + Math.sin(midAngle) * (radius * 0.65));
                         ctx.rotate(midAngle + Math.PI / 2);
                         
                         let text = displayName;
-                        if (text.length > 11) text = text.substring(0, 9) + "..";
+                        if (text.length > 10) text = text.substring(0, 8) + "..";
                         
                         ctx.fillText(text, -ctx.measureText(text).width / 2, 0);
                         ctx.restore();
                     }} else {{
                         const lineStartX = centerX + Math.cos(midAngle) * (radius - 5);
                         const lineStartY = centerY + Math.sin(midAngle) * (radius - 5);
-                        const lineEndX = centerX + Math.cos(midAngle) * (radius + 20);
-                        const lineEndY = centerY + Math.sin(midAngle) * (radius + 20);
+                        const lineEndX = centerX + Math.cos(midAngle) * (radius + 18);
+                        const lineEndY = centerY + Math.sin(midAngle) * (radius + 18);
 
                         ctx.beginPath();
                         ctx.strokeStyle = "#333333";
@@ -346,13 +345,13 @@ else:
 
                         ctx.save();
                         ctx.fillStyle = "#333333";
-                        ctx.font = "bold 11px sans-serif";
+                        ctx.font = "bold 10px sans-serif";
                         
                         const isRightSide = Math.cos(midAngle) >= 0;
                         ctx.textAlign = isRightSide ? "left" : "right";
                         
-                        const textX = lineEndX + (isRightSide ? 5 : -5);
-                        const textY = lineEndY + 4;
+                        const textX = lineEndX + (isRightSide ? 4 : -4);
+                        const textY = lineEndY + 3;
 
                         ctx.fillText(displayName, textX, textY);
                         ctx.restore();
@@ -379,15 +378,10 @@ else:
 
             function spin() {{
                 if (isSpinning || itemList.length < 1) return;
-                
-                if (itemList.length === 1) {{
-                    alert("남은 항목이 1개입니다!");
-                    return;
-                }}
 
                 isSpinning = true;
                 document.getElementById('spinBtn').disabled = true;
-                document.getElementById('result').innerText = "두근두근... 룰렛 회전 중!";
+                document.getElementById('result').innerText = "두근두근... 회전 중!";
 
                 const duration = 4000;
                 const startAngle = currentAngle;
@@ -446,7 +440,7 @@ else:
                         const winText = `${{winner.name}} (${{winner.prob.toFixed(1)}}%)`;
                         document.getElementById('result').innerText = "🎉 당첨 결과: " + winText;
                         
-                        // 히스토리에 기록
+                        // 당첨 목록에 기록
                         historyData.push(winText);
                         updateHistory();
 
@@ -481,4 +475,4 @@ else:
     </html>
     """
     
-    components.html(html_code, height=560)
+    components.html(html_code, height=520)
