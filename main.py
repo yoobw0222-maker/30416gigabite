@@ -9,11 +9,11 @@ st.title("🎯 아무거나 룰렛")
 # 기본 항목 입력값
 default_items = "1등(2%), 2등(5%), 3등(10%), 4등(20%), 꽝(63%)"
 
-# 입력창 UI (도움말 수정)
+# 입력창 UI
 items_input = st.text_input(
     "항목 및 (확률) 입력 (쉼표로 구분)", 
     value=default_items,
-    help="예시: 항목명(확률%) 형태로 입력해 주세요. 확률을 생략하면 남은 확률이 균등 분배됩니다. (💡 입력 후 Enter를 누르면 지워진 항목이 다시 복원 및 재설정됩니다!)"
+    help="예시: 항목명(확률%) 형태로 입력해 주세요. 확률을 생략하면 남은 확률이 균등 분배됩니다."
 )
 
 # 텍스트 파싱 함수
@@ -214,7 +214,7 @@ else:
         </div>
 
         <script>
-            let itemList = JSON.parse(JSON.stringify({initial_data}));
+            let itemList = {initial_data};
             let autoRemove = true;
             let historyData = [];
 
@@ -224,7 +224,7 @@ else:
 
             const centerX = 190;
             const centerY = 190;
-            const radius = 115;
+            const radius = 115; // 원판 반지름을 미세하게 조절하여 여백을 충분히 확보
 
             let currentAngle = 0;
             let isSpinning = false;
@@ -341,6 +341,7 @@ else:
                     const canFitInside = (availableWidthAtRadius > textWidth + 8) && (arc >= 0.4);
 
                     if (canFitInside) {{
+                        // 원판 내부 표기
                         ctx.save();
                         ctx.translate(centerX + Math.cos(midAngle) * (radius * 0.6), centerY + Math.sin(midAngle) * (radius * 0.6));
                         ctx.rotate(midAngle + Math.PI / 2);
@@ -353,12 +354,14 @@ else:
                         ctx.restore();
 
                     }} else {{
+                        // 밖으로 빼낸 항목 (원판과 글자가 안 가려지도록 안전거리 설정)
                         const lineStartX = centerX + Math.cos(midAngle) * radius;
                         const lineStartY = centerY + Math.sin(midAngle) * radius;
                         
                         const lineEndX = centerX + Math.cos(midAngle) * (radius + 15);
                         const lineEndY = centerY + Math.sin(midAngle) * (radius + 15);
 
+                        // 지시선 그리기
                         ctx.beginPath();
                         ctx.strokeStyle = "#444444";
                         ctx.lineWidth = 1.2;
@@ -377,6 +380,7 @@ else:
                         ctx.textAlign = isRightSide ? "left" : "right";
                         ctx.textBaseline = "middle";
 
+                        // 또렷하게 선명한 외곽선으로만 감싸서 잘림 현상 방지
                         ctx.strokeStyle = "#ffffff";
                         ctx.lineWidth = 3;
                         ctx.strokeText(displayName, textX, textY);
@@ -479,5 +483,4 @@ else:
     </html>
     """
     
-    # key 매개변수를 지정하여 입력창에 Enter를 칠 때마다 렌더링되면서 파싱된 데이터로 자동 복원
-    components.html(html_code, height=520, key=f"roulette_{items_input}")
+    components.html(html_code, height=520)
