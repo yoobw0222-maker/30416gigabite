@@ -16,12 +16,6 @@ items_input = st.text_input(
     help="예시: 항목명(확률%) 형태로 입력해 주세요. 확률을 생략하면 남은 확률이 균등 분배됩니다."
 )
 
-# 사이드바 안내
-with st.sidebar:
-    st.header("⚙️ 룰렛 옵션")
-    st.info("💡 **당첨 항목 자동 지우기** 및 **확률 재분배**가 룰렛 화면 내에서 자동으로 작동합니다.")
-    st.caption("새로운 항목으로 시작하고 싶다면 상단 입력창의 텍스트를 수정해 주세요.")
-
 # 텍스트 파싱 함수
 def parse_items(input_str):
     raw_items = [item.strip() for item in input_str.split(",") if item.strip()]
@@ -65,7 +59,6 @@ parsed_items = parse_items(items_input)
 if len(parsed_items) < 2:
     st.warning("최소 2개 이상의 항목을 입력해 주세요.")
 else:
-    # JS 전송용 데이터
     initial_data = [{"name": item["name"], "prob": round(item["prob"], 1)} for item in parsed_items]
 
     html_code = f"""
@@ -74,17 +67,22 @@ else:
     <head>
         <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
         <style>
-            .roulette-container {{
+            .container {{
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 20px;
+                font-family: sans-serif;
+            }}
+            .roulette-box {{
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                font-family: sans-serif;
             }}
             .wheel-wrapper {{
                 position: relative;
-                width: 440px;
-                height: 440px;
-                margin-top: 10px;
+                width: 400px;
+                height: 400px;
             }}
             .pointer {{
                 position: absolute;
@@ -93,107 +91,144 @@ else:
                 transform: translateX(-50%);
                 width: 0;
                 height: 0;
-                border-left: 15px solid transparent;
-                border-right: 15px solid transparent;
-                border-top: 25px solid red;
+                border-left: 14px solid transparent;
+                border-right: 14px solid transparent;
+                border-top: 24px solid red;
                 z-index: 10;
             }}
             canvas {{
                 border-radius: 50%;
             }}
-            .controls {{
-                display: flex;
-                gap: 10px;
-                align-items: center;
+            .control-panel {{
                 margin-top: 15px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
             }}
-            button {{
-                padding: 10px 24px;
-                font-size: 16px;
+            .btn-spin {{
+                padding: 12px 30px;
+                font-size: 18px;
                 font-weight: bold;
                 background-color: #FF4B4B;
                 color: white;
                 border: none;
                 border-radius: 8px;
                 cursor: pointer;
+                transition: background 0.2s;
             }}
-            button:disabled {{
+            .btn-spin:hover {{
+                background-color: #e03a3a;
+            }}
+            .btn-spin:disabled {{
                 background-color: #ccc;
                 cursor: not-allowed;
             }}
-            .toggle-label {{
+            .toggle-btn {{
+                padding: 8px 16px;
                 font-size: 14px;
                 font-weight: bold;
-                color: #333;
-                display: flex;
-                align-items: center;
-                gap: 5px;
+                border-radius: 20px;
+                border: 2px solid #333;
+                background-color: #4CAF50;
+                color: white;
                 cursor: pointer;
+                transition: all 0.2s;
+            }}
+            .toggle-btn.off {{
+                background-color: #888;
+                border-color: #888;
             }}
             #result {{
-                margin-top: 15px;
-                font-size: 18px;
+                font-size: 17px;
                 font-weight: bold;
                 color: #2E7D32;
-                height: 30px;
+                min-height: 24px;
+                text-align: center;
             }}
-            #history-box {{
-                margin-top: 15px;
-                width: 400px;
+            .history-box {{
+                width: 260px;
+                height: 480px;
                 background: #f8f9fa;
-                border: 1px solid #ddd;
-                border-radius: 8px;
-                padding: 10px 15px;
+                border: 1px solid #e0e0e0;
+                border-radius: 10px;
+                padding: 15px;
+                display: flex;
+                flex-direction: column;
             }}
-            #history-box h4 {{
-                margin: 0 0 8px 0;
-                font-size: 14px;
-                color: #555;
+            .history-header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 10px;
+                border-bottom: 2px solid #ddd;
+                padding-bottom: 8px;
+            }}
+            .history-header h3 {{
+                margin: 0;
+                font-size: 16px;
+                color: #333;
+            }}
+            .btn-clear {{
+                padding: 4px 8px;
+                font-size: 12px;
+                background-color: #6c757d;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
             }}
             #history-list {{
+                flex: 1;
                 margin: 0;
                 padding-left: 20px;
-                font-size: 13px;
+                font-size: 14px;
                 color: #333;
-                max-height: 100px;
                 overflow-y: auto;
+                line-height: 1.6;
             }}
         </style>
     </head>
     <body>
-        <div class="roulette-container">
-            <div class="wheel-wrapper">
-                <div class="pointer"></div>
-                <canvas id="wheel" width="440" height="440"></canvas>
+        <div class="container">
+            <!-- 룰렛 영역 -->
+            <div class="roulette-box">
+                <div class="wheel-wrapper">
+                    <div class="pointer"></div>
+                    <canvas id="wheel" width="400" height="400"></canvas>
+                </div>
+                
+                <div class="control-panel">
+                    <button id="spinBtn" class="btn-spin" onclick="spin()">룰렛 돌리기! 🎰</button>
+                    <button id="toggleBtn" class="toggle-btn" onclick="toggleAutoRemove()">
+                        🎯 자동 지우기 옵션: ON
+                    </button>
+                    <div id="result"></div>
+                </div>
             </div>
-            
-            <div class="controls">
-                <button id="spinBtn" onclick="spin()">룰렛 돌리기! 🎰</button>
-                <label class="toggle-label">
-                    <input type="checkbox" id="autoRemoveToggle" checked>
-                    당첨 항목 자동 지우기
-                </label>
-            </div>
-            
-            <div id="result"></div>
 
-            <div id="history-box">
-                <h4>📜 당첨 히스토리</h4>
+            <!-- 당첨 기록 영역 -->
+            <div class="history-box">
+                <div class="history-header">
+                    <h3>📜 당첨 기록</h3>
+                    <button class="btn-clear" onclick="clearHistory()">초기화</button>
+                </div>
                 <ol id="history-list"></ol>
             </div>
         </div>
 
         <script>
-            // 파이썬에서 넘겨받은 초기 항목 배열
             let itemList = {initial_data};
-            
+            let autoRemove = true;
+            let historyData = [];
+
             const canvas = document.getElementById('wheel');
             const ctx = canvas.getContext('2d');
             const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#E7E9ED', '#76D7C4'];
 
-            const centerX = 220;
-            const centerY = 220;
-            const radius = 140;
+            const centerX = 200;
+            const centerY = 200;
+            const radius = 130;
 
             let currentAngle = 0;
             let isSpinning = false;
@@ -235,7 +270,18 @@ else:
                 }});
             }}
 
-            // 현재 itemList를 기반으로 가중치 및 각도(arcs) 계산
+            function toggleAutoRemove() {{
+                autoRemove = !autoRemove;
+                const btn = document.getElementById('toggleBtn');
+                if (autoRemove) {{
+                    btn.innerText = "🎯 자동 지우기 옵션: ON";
+                    btn.classList.remove('off');
+                }} else {{
+                    btn.innerText = "🎯 자동 지우기 옵션: OFF";
+                    btn.classList.add('off');
+                }}
+            }}
+
             function calculateArcs() {{
                 const totalProb = itemList.reduce((sum, item) => sum + item.prob, 0);
                 arcs = itemList.map(item => (item.prob / totalProb) * 2 * Math.PI);
@@ -243,7 +289,7 @@ else:
 
             function drawWheel() {{
                 calculateArcs();
-                ctx.clearRect(0, 0, 440, 440);
+                ctx.clearRect(0, 0, 400, 400);
                 const numItems = itemList.length;
 
                 if (numItems === 0) {{
@@ -253,7 +299,6 @@ else:
 
                 let startAngle = currentAngle;
 
-                // 룰렛 조각 그리기
                 for (let i = 0; i < numItems; i++) {{
                     const arc = arcs[i];
                     const endAngle = startAngle + arc;
@@ -268,7 +313,6 @@ else:
                     startAngle = endAngle;
                 }}
 
-                // 텍스트 라벨 그리기
                 startAngle = currentAngle;
                 for (let i = 0; i < numItems; i++) {{
                     const arc = arcs[i];
@@ -283,7 +327,7 @@ else:
                         ctx.rotate(midAngle + Math.PI / 2);
                         
                         let text = displayName;
-                        if (text.length > 12) text = text.substring(0, 10) + "..";
+                        if (text.length > 11) text = text.substring(0, 9) + "..";
                         
                         ctx.fillText(text, -ctx.measureText(text).width / 2, 0);
                         ctx.restore();
@@ -318,15 +362,32 @@ else:
                 }}
             }}
 
+            function updateHistory() {{
+                const list = document.getElementById('history-list');
+                list.innerHTML = "";
+                historyData.slice().reverse().forEach((item) => {{
+                    const li = document.createElement('li');
+                    li.innerText = item;
+                    list.appendChild(li);
+                }});
+            }}
+
+            function clearHistory() {{
+                historyData = [];
+                updateHistory();
+            }}
+
             function spin() {{
-                if (isSpinning || itemList.length < 2) {{
-                    if (itemList.length < 2) alert("최소 2개 이상의 항목이 남아있어야 합니다!");
+                if (isSpinning || itemList.length < 1) return;
+                
+                if (itemList.length === 1) {{
+                    alert("남은 항목이 1개입니다!");
                     return;
                 }}
-                
+
                 isSpinning = true;
                 document.getElementById('spinBtn').disabled = true;
-                document.getElementById('result').innerText = "두근두근... 룰렛이 돌고 있습니다!";
+                document.getElementById('result').innerText = "두근두근... 룰렛 회전 중!";
 
                 const duration = 4000;
                 const startAngle = currentAngle;
@@ -338,7 +399,7 @@ else:
                     const elapsed = currentTime - startTime;
                     if (elapsed < duration) {{
                         const progress = elapsed / duration;
-                        const easeOut = 1 - Math.pow(1 - progress, 3); 
+                        const easeOut = 1 - Math.pow(1 - progress, 3);
                         currentAngle = startAngle + (totalRotation * easeOut);
                         drawWheel();
 
@@ -382,32 +443,28 @@ else:
                         confetti({{ particleCount: 100, spread: 70, origin: {{ y: 0.6 }} }});
                         
                         const winner = itemList[winningIndex];
-                        document.getElementById('result').innerText = "🎉 당첨 결과: " + winner.name + " (" + winner.prob.toFixed(1) + "%)";
+                        const winText = `${{winner.name}} (${{winner.prob.toFixed(1)}}%)`;
+                        document.getElementById('result').innerText = "🎉 당첨 결과: " + winText;
                         
-                        // 히스토리에 추가
-                        const historyList = document.getElementById('history-list');
-                        const li = document.createElement('li');
-                        li.innerText = winner.name + " (" + winner.prob.toFixed(1) + "%)";
-                        historyList.insertBefore(li, historyList.firstChild);
+                        // 히스토리에 기록
+                        historyData.push(winText);
+                        updateHistory();
 
-                        // 자동 지우기 및 확률 재분배 로직
-                        const autoRemove = document.getElementById('autoRemoveToggle').checked;
+                        // 자동 지우기 및 확률 균등 재분배
                         if (autoRemove && itemList.length > 1) {{
                             setTimeout(() => {{
                                 const removedProb = winner.prob;
-                                itemList.splice(winningIndex, 1); // 당첨 항목 지우기
+                                itemList.splice(winningIndex, 1);
                                 
-                                // 비어진 확률을 남은 항목들에 균등하게 나누어 더해주기
                                 const addProb = removedProb / itemList.length;
                                 itemList.forEach(item => {{
                                     item.prob += addProb;
                                 }});
                                 
-                                // 룰렛 다시 그리기
                                 drawWheel();
                                 isSpinning = false;
                                 document.getElementById('spinBtn').disabled = false;
-                            }}, 1000); // 당첨 확인 후 1초 뒤에 지우기
+                            }}, 1000);
                         }} else {{
                             isSpinning = false;
                             document.getElementById('spinBtn').disabled = false;
@@ -424,4 +481,4 @@ else:
     </html>
     """
     
-    components.html(html_code, height=680)
+    components.html(html_code, height=560)
