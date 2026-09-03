@@ -76,7 +76,6 @@ else:
                 font-family: sans-serif;
                 width: 100%;
             }}
-            /* 좌측 상단 기록 박스 */
             .history-section {{
                 width: 240px;
                 height: 480px;
@@ -190,7 +189,6 @@ else:
     </head>
     <body>
         <div class="app-wrapper">
-            <!-- 좌측 상단: 당첨 기록 목록 -->
             <div class="history-section">
                 <div class="history-header">
                     <h3>📜 당첨 기록</h3>
@@ -199,7 +197,6 @@ else:
                 <ol id="history-list"></ol>
             </div>
 
-            <!-- 우측: 룰렛 및 컨트롤 -->
             <div class="roulette-section">
                 <div class="wheel-wrapper">
                     <div class="pointer"></div>
@@ -227,7 +224,7 @@ else:
 
             const centerX = 190;
             const centerY = 190;
-            const radius = 120; // 지시선을 깔끔하게 배치하기 위해 원 크기 조절
+            const radius = 115; // 원판 반지름을 미세하게 조절하여 여백을 충분히 확보
 
             let currentAngle = 0;
             let isSpinning = false;
@@ -329,27 +326,24 @@ else:
                     startAngle = endAngle;
                 }}
 
-                // 2. 항목 텍스트 및 외부 지시선 그리기
+                // 2. 항목 텍스트 및 지시선 배치
                 startAngle = currentAngle;
                 for (let i = 0; i < numItems; i++) {{
                     const arc = arcs[i];
                     const midAngle = startAngle + arc / 2;
                     const displayName = `${{itemList[i].name}} (${{itemList[i].prob.toFixed(1)}}%)`;
 
-                    // 부채꼴의 물리적 호 길이(width) 계산
-                    // 텍스트를 내부에 포함할 수 있는지 판단하는 핵심 기준
-                    const availableWidthAtRadius = radius * 0.65 * arc;
+                    const availableWidthAtRadius = radius * 0.6 * arc;
 
                     ctx.font = "bold 11px sans-serif";
                     const textWidth = ctx.measureText(displayName).width;
 
-                    // 부채꼴 공간이 텍스트 너비보다 넓고 각도(arc)가 충분할 때만 내부에 그리기
-                    const canFitInside = (availableWidthAtRadius > textWidth + 10) && (arc >= 0.4);
+                    const canFitInside = (availableWidthAtRadius > textWidth + 8) && (arc >= 0.4);
 
                     if (canFitInside) {{
-                        // 내부 표기
+                        // 원판 내부 표기
                         ctx.save();
-                        ctx.translate(centerX + Math.cos(midAngle) * (radius * 0.65), centerY + Math.sin(midAngle) * (radius * 0.65));
+                        ctx.translate(centerX + Math.cos(midAngle) * (radius * 0.6), centerY + Math.sin(midAngle) * (radius * 0.6));
                         ctx.rotate(midAngle + Math.PI / 2);
                         
                         ctx.fillStyle = "#ffffff";
@@ -360,55 +354,38 @@ else:
                         ctx.restore();
 
                     }} else {{
-                        // 범위를 넘어서는 글씨는 밖으로 빼서 선으로 연결
-                        const lineStartX = centerX + Math.cos(midAngle) * (radius - 10);
-                        const lineStartY = centerY + Math.sin(midAngle) * (radius - 10);
-                        const lineEndX = centerX + Math.cos(midAngle) * (radius + 20);
-                        const lineEndY = centerY + Math.sin(midAngle) * (radius + 20);
+                        // 밖으로 빼낸 항목 (원판과 글자가 안 가려지도록 안전거리 설정)
+                        const lineStartX = centerX + Math.cos(midAngle) * radius;
+                        const lineStartY = centerY + Math.sin(midAngle) * radius;
+                        
+                        const lineEndX = centerX + Math.cos(midAngle) * (radius + 15);
+                        const lineEndY = centerY + Math.sin(midAngle) * (radius + 15);
 
                         // 지시선 그리기
                         ctx.beginPath();
-                        ctx.strokeStyle = "#333333";
-                        ctx.lineWidth = 1.5;
+                        ctx.strokeStyle = "#444444";
+                        ctx.lineWidth = 1.2;
                         ctx.moveTo(lineStartX, lineStartY);
                         ctx.lineTo(lineEndX, lineEndY);
                         ctx.stroke();
-
-                        // 지시선 끝점에 정갈한 점 표시
-                        ctx.beginPath();
-                        ctx.arc(lineStartX, lineStartY, 3, 0, 2 * Math.PI);
-                        ctx.fillStyle = "#333333";
-                        ctx.fill();
 
                         ctx.save();
                         ctx.font = "bold 11px sans-serif";
                         
                         const isRightSide = Math.cos(midAngle) >= 0;
-                        const textX = lineEndX + (isRightSide ? 6 : -6);
+                        const textX = lineEndX + (isRightSide ? 5 : -5);
                         const textY = lineEndY;
-
-                        // 바깥 배경 상자
-                        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-                        ctx.fillRect(
-                            isRightSide ? textX - 2 : textX - textWidth - 4, 
-                            textY - 8, 
-                            textWidth + 6, 
-                            16
-                        );
-
-                        ctx.strokeStyle = "#cccccc";
-                        ctx.lineWidth = 1;
-                        ctx.strokeRect(
-                            isRightSide ? textX - 2 : textX - textWidth - 4, 
-                            textY - 8, 
-                            textWidth + 6, 
-                            16
-                        );
 
                         ctx.fillStyle = "#111111";
                         ctx.textAlign = isRightSide ? "left" : "right";
                         ctx.textBaseline = "middle";
+
+                        // 또렷하게 선명한 외곽선으로만 감싸서 잘림 현상 방지
+                        ctx.strokeStyle = "#ffffff";
+                        ctx.lineWidth = 3;
+                        ctx.strokeText(displayName, textX, textY);
                         ctx.fillText(displayName, textX, textY);
+
                         ctx.restore();
                     }}
 
