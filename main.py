@@ -1,16 +1,24 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import re
+import random
 
 st.set_page_config(page_title="아무거나 룰렛", page_icon="🎯", layout="centered")
 
 st.title("🎯 아무거나 룰렛")
 
-# 세션 상태 초기화 (당첨 히스토리 저장)
+# 세션 상태 초기화
 if "history" not in st.session_state:
     st.session_state.history = []
+if "winner" not in st.session_state:
+    st.session_state.winner = None
+if "spin_trigger" not in st.session_state:
+    st.session_state.spin_trigger = 0
 
-# 사이드바: 옵션 설정 및 히스토리 출력
+# 기본 항목 입력값
+default_items = "1등(2%), 2등(5%), 3등(10%), 4등(20%), 꽝(63%)"
+
+# 사이드바 설정 및 히스토리
 with st.sidebar:
     st.header("⚙️ 룰렛 옵션")
     remove_winner = st.checkbox("🎯 당첨된 항목 다음 룰렛에서 자동 제거", value=False)
@@ -19,6 +27,7 @@ with st.sidebar:
     st.header("📜 당첨 히스토리")
     if st.button("히스토리 초기화"):
         st.session_state.history = []
+        st.session_state.winner = None
         st.rerun()
         
     if st.session_state.history:
@@ -26,14 +35,6 @@ with st.sidebar:
             st.write(f"**{len(st.session_state.history) - idx + 1}회차:** {item}")
     else:
         st.caption("아직 당첨 기록이 없습니다.")
-
-# 사용자 입력 받기
-default_items = "1등(2%), 2등(5%), 3등(10%), 4등(20%), 꽝(63%)"
-items_input = st.text_input(
-    "항목 및 (확률) 입력 (쉼표로 구분)", 
-    value=default_items,
-    help="예시: 항목명(확률%) 형태로 입력해 주세요. 확률을 생략하면 남은 확률이 균등 분배됩니다."
-)
 
 # 텍스트 파싱 함수
 def parse_items(input_str):
@@ -73,14 +74,55 @@ def parse_items(input_str):
 
     return parsed
 
-parsed_items = parse_items(items_input)
+# 항목 입력 창 (세션 상태에 따라 기본값 업데이트 가능)
+if "input_text" not in st.session_state:
+    st.session_state.input_text = default_items
+
+items_input = st.text_input(
+    "항목 및 (확률) 입력 (쉼표로 구분)", 
+    key="input_text",
+    help="예시: 항목명(확률%) 형태로 입력해 주세요. 확률을 생략하면 남은 확률이 균등 분배됩니다."
+)
+
+parsed_items = parse_items(st.session_state.input_text)
 
 if len(parsed_items) < 2:
     st.warning("최소 2개 이상의 항목을 입력해 주세요.")
 else:
+    # 파이썬 버튼을 통해 룰렛 돌리기 컨트롤
+    if st.button("룰렛 돌리기! 🎰", type="primary", use_container_width=True):
+        # 파이썬에서 확률 가중치 기반으로 당첨자 추첨
+        names = [item["name"] for item in parsed_items]
+        weights = [item["weight"] for item in parsed_items]
+        
+        winning_item = random.choices(parsed_items, weights=weights, k=1)[0]
+        winning_name = winning_item["name"]
+        winning_index = parsed_items.index(winning_item)
+        
+        # 세션에 기록 저장
+        st.session_state.winner = winning_name
+        st.session_state.history.append(winning_name)
+        st.session_state.spin_trigger += 1
+        st.session_state.winning_index = winning_index
+        
+        # 당첨 항목 제거 옵션 처리
+        if remove_winner:
+            # 당첨 항목 제거 후 입력창 텍스트 재구성
+            remaining_items = [item for item in parsed_items if item["name"] != winning_name]
+            new_input = []
+            for item in remaining_items:
+                if item["specified"]:
+                    new_input.append(f"{item['name']}({item['prob']}%)")
+                else:
+                    new_input.append(item['name'])
+            st.session_state.input_text = ", ".join(new_input)
+
     js_names = [f"{item['name']} ({item['prob']:.1f}%)" for item in parsed_items]
-    js_raw_names = [item['name'] for item in parsed_items]
     js_weights = [item["weight"] for item in parsed_items]
+    
+    # 룰렛 애니메이션 target 결정
+    target_idx = getattr(st.session_state, "winning_index", -1)
+    spin_count = st.session_state.spin_trigger
 
     html_code = f"""
     <!DOCTYPE html>
@@ -115,21 +157,6 @@ else:
             canvas {{
                 border-radius: 50%;
             }}
-            button {{
-                margin-top: 20px;
-                padding: 10px 24px;
-                font-size: 16px;
-                font-weight: bold;
-                background-color: #FF4B4B;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                cursor: pointer;
-            }}
-            button:disabled {{
-                background-color: #ccc;
-                cursor: not-allowed;
-            }}
             #result {{
                 margin-top: 15px;
                 font-size: 20px;
@@ -145,15 +172,15 @@ else:
                 <div class="pointer"></div>
                 <canvas id="wheel" width="440" height="440"></canvas>
             </div>
-            <button id="spinBtn" onclick="spin()">룰렛 돌리기! 🎰</button>
             <div id="result"></div>
         </div>
 
         <script>
             const names = {js_names};
-            const rawNames = {js_raw_names};
             const weights = {js_weights};
             const numItems = names.length;
+            const targetIndex = {target_idx};
+            const spinCount = {spin_count};
             
             const canvas = document.getElementById('wheel');
             const ctx = canvas.getContext('2d');
@@ -165,51 +192,38 @@ else:
             const radius = 140;
 
             let currentAngle = 0;
-            let isSpinning = false;
             let lastArcIndex = -1;
 
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
             function playTickSound() {{
-                if (audioCtx.state === 'suspended') {{
-                    audioCtx.resume();
-                }}
+                if (audioCtx.state === 'suspended') {{ audioCtx.resume(); }}
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-                
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(800, audioCtx.currentTime);
                 osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.04);
-                
                 gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
-                
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
-                
                 osc.start();
                 osc.stop(audioCtx.currentTime + 0.04);
             }}
 
             function playWinSound() {{
-                if (audioCtx.state === 'suspended') {{
-                    audioCtx.resume();
-                }}
+                if (audioCtx.state === 'suspended') {{ audioCtx.resume(); }}
                 const notes = [523.25, 659.25, 783.99, 1046.50];
                 notes.forEach((freq, idx) => {{
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
-                    
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.1);
-                    
                     gain.gain.setValueAtTime(0, audioCtx.currentTime + idx * 0.1);
                     gain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + idx * 0.1 + 0.05);
                     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + idx * 0.1 + 0.8);
-                    
                     osc.connect(gain);
                     gain.connect(audioCtx.destination);
-                    
                     osc.start(audioCtx.currentTime + idx * 0.1);
                     osc.stop(audioCtx.currentTime + idx * 0.1 + 0.8);
                 }});
@@ -281,26 +295,29 @@ else:
                 }}
             }}
 
-            function spin() {{
-                if (isSpinning) return;
-                isSpinning = true;
-                document.getElementById('spinBtn').disabled = true;
+            function spinToTarget(targetIdx) {{
                 document.getElementById('result').innerText = "두근두근... 룰렛이 돌고 있습니다!";
-
-                const duration = 5000; // 대기 시간 5초로 약간 단축
-                const startAngle = currentAngle;
                 
-                const randomAngle = Math.random() * 2 * Math.PI;
-                const totalRotation = (8 * 2 * Math.PI) + randomAngle;
+                // 해당 당첨 조각의 각도 범위 계산
+                let startArcAngle = 0;
+                for(let i = 0; i < targetIdx; i++) {{
+                    startArcAngle += arcs[i];
+                }}
+                const arcCenter = startArcAngle + (arcs[targetIdx] / 2);
                 
+                // 포인터(12시 방향 = 3π/2 각도)에 해당 조각이 멈추도록 최종 각도 계산
+                const targetPointerAngle = (3 * Math.PI / 2) - arcCenter;
+                const totalRotation = (6 * 2 * Math.PI) + targetPointerAngle;
+                
+                const duration = 4000;
                 const startTime = performance.now();
 
                 function animate(currentTime) {{
                     const elapsed = currentTime - startTime;
                     if (elapsed < duration) {{
                         const progress = elapsed / duration;
-                        const easeOut = 1 - Math.pow(1 - progress, 3); 
-                        currentAngle = startAngle + (totalRotation * easeOut);
+                        const easeOut = 1 - Math.pow(1 - progress, 3);
+                        currentAngle = totalRotation * easeOut;
                         drawWheel();
 
                         const normalizedAngle = (2 * Math.PI - (currentAngle % (2 * Math.PI))) % (2 * Math.PI);
@@ -323,41 +340,11 @@ else:
 
                         requestAnimationFrame(animate);
                     }} else {{
-                        currentAngle = startAngle + totalRotation;
+                        currentAngle = totalRotation;
                         drawWheel();
-                        isSpinning = false;
-                        document.getElementById('spinBtn').disabled = false;
-                        
-                        const normalizedAngle = (2 * Math.PI - (currentAngle % (2 * Math.PI))) % (2 * Math.PI);
-                        const pointerAngle = (normalizedAngle + Math.PI / 2) % (2 * Math.PI);
-                        
-                        let accumulatedAngle = 0;
-                        let winningIndex = 0;
-                        for (let i = 0; i < numItems; i++) {{
-                            accumulatedAngle += arcs[i];
-                            if (pointerAngle <= accumulatedAngle) {{
-                                winningIndex = i;
-                                break;
-                            }}
-                        }}
-                        
                         playWinSound();
-                        
-                        // 축하 폭죽 연출 (confetti)
-                        confetti({{
-                            particleCount: 100,
-                            spread: 70,
-                            origin: {{ y: 0.6 }}
-                        }});
-                        
-                        const winnerName = rawNames[winningIndex];
-                        document.getElementById('result').innerText = "🎉 당첨 결과: " + names[winningIndex];
-                        
-                        // Streamlit으로 당첨 결과 데이터 전달
-                        window.parent.postMessage({{
-                            type: 'streamlit:setComponentValue',
-                            value: winnerName
-                        }}, '*');
+                        confetti({{ particleCount: 100, spread: 70, origin: {{ y: 0.6 }} }});
+                        document.getElementById('result').innerText = "🎉 당첨 결과: " + names[targetIdx];
                     }}
                 }}
 
@@ -365,13 +352,14 @@ else:
             }}
 
             drawWheel();
+
+            // 돌리기 실행 명령이 들어왔을 때 애니메이션 구동
+            if (spinCount > 0 && targetIndex >= 0) {{
+                spinToTarget(targetIndex);
+            }}
         </script>
     </body>
     </html>
     """
     
-    # HTML 컴포넌트 실행 및 데이터 수신
-    winner_result = components.html(html_code, height=530)
-
-    # 당첨 결과 처리 (중복 방지를 위한 간단한 쿼리 파라미터 활용)
-    # Streamlit에서 iframe 메시지를 직접 받을 때 재실행 특성을 고려
+    components.html(html_code, height=500)
