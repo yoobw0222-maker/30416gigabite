@@ -76,6 +76,49 @@ else:
                 font-family: sans-serif;
                 width: 100%;
             }}
+            /* 좌측 상단 기록 박스 */
+            .history-section {{
+                width: 240px;
+                height: 480px;
+                background: #f8f9fa;
+                border: 2px solid #e0e0e0;
+                border-radius: 10px;
+                padding: 12px;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+            }}
+            .history-header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 2px solid #ddd;
+                padding-bottom: 6px;
+                margin-bottom: 8px;
+            }}
+            .history-header h3 {{
+                margin: 0;
+                font-size: 15px;
+                color: #333;
+            }}
+            .btn-clear {{
+                padding: 3px 8px;
+                font-size: 11px;
+                background-color: #6c757d;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }}
+            #history-list {{
+                flex: 1;
+                margin: 0;
+                padding-left: 20px;
+                font-size: 13px;
+                color: #333;
+                overflow-y: auto;
+                line-height: 1.6;
+            }}
             .roulette-section {{
                 display: flex;
                 flex-direction: column;
@@ -143,54 +186,20 @@ else:
                 min-height: 24px;
                 text-align: center;
             }}
-            /* 우측 상단 기록 박스 */
-            .history-section {{
-                width: 240px;
-                height: 480px;
-                background: #f8f9fa;
-                border: 2px solid #e0e0e0;
-                border-radius: 10px;
-                padding: 12px;
-                box-sizing: border-box;
-                display: flex;
-                flex-direction: column;
-            }}
-            .history-header {{
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                border-bottom: 2px solid #ddd;
-                padding-bottom: 6px;
-                margin-bottom: 8px;
-            }}
-            .history-header h3 {{
-                margin: 0;
-                font-size: 15px;
-                color: #333;
-            }}
-            .btn-clear {{
-                padding: 3px 8px;
-                font-size: 11px;
-                background-color: #6c757d;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-            }}
-            #history-list {{
-                flex: 1;
-                margin: 0;
-                padding-left: 20px;
-                font-size: 13px;
-                color: #333;
-                overflow-y: auto;
-                line-height: 1.6;
-            }}
         </style>
     </head>
     <body>
         <div class="app-wrapper">
-            <!-- 좌측: 룰렛 및 컨트롤 -->
+            <!-- 좌측 상단: 당첨 기록 목록 -->
+            <div class="history-section">
+                <div class="history-header">
+                    <h3>📜 당첨 기록</h3>
+                    <button class="btn-clear" onclick="clearHistory()">초기화</button>
+                </div>
+                <ol id="history-list"></ol>
+            </div>
+
+            <!-- 우측: 룰렛 및 컨트롤 -->
             <div class="roulette-section">
                 <div class="wheel-wrapper">
                     <div class="pointer"></div>
@@ -204,15 +213,6 @@ else:
                     </button>
                     <div id="result"></div>
                 </div>
-            </div>
-
-            <!-- 우측 상단: 기록 목록 -->
-            <div class="history-section">
-                <div class="history-header">
-                    <h3>📜 당첨 기록</h3>
-                    <button class="btn-clear" onclick="clearHistory()">초기화</button>
-                </div>
-                <ol id="history-list"></ol>
             </div>
         </div>
 
@@ -440,20 +440,23 @@ else:
                         const winText = `${{winner.name}} (${{winner.prob.toFixed(1)}}%)`;
                         document.getElementById('result').innerText = "🎉 당첨 결과: " + winText;
                         
-                        // 당첨 목록에 기록
                         historyData.push(winText);
                         updateHistory();
 
-                        // 자동 지우기 및 확률 균등 재분배
+                        // 자동 지우기 및 확률 비율 유지 재분배
                         if (autoRemove && itemList.length > 1) {{
                             setTimeout(() => {{
-                                const removedProb = winner.prob;
                                 itemList.splice(winningIndex, 1);
                                 
-                                const addProb = removedProb / itemList.length;
-                                itemList.forEach(item => {{
-                                    item.prob += addProb;
-                                }});
+                                // 남은 항목들의 원래 확률 합계 계산
+                                const remainingTotal = itemList.reduce((sum, item) => sum + item.prob, 0);
+                                
+                                // 100% 기준으로 비율 맞춰 재조정
+                                if (remainingTotal > 0) {{
+                                    itemList.forEach(item => {{
+                                        item.prob = (item.prob / remainingTotal) * 100;
+                                    }});
+                                }}
                                 
                                 drawWheel();
                                 isSpinning = false;
