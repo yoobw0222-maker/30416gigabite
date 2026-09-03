@@ -227,7 +227,7 @@ else:
 
             const centerX = 190;
             const centerY = 190;
-            const radius = 125;
+            const radius = 120; // 지시선을 깔끔하게 배치하기 위해 원 크기 조절
 
             let currentAngle = 0;
             let isSpinning = false;
@@ -312,7 +312,7 @@ else:
 
                 let startAngle = currentAngle;
 
-                // 1. 원판 조각 그리기
+                // 1. 룰렛 원판 그리기
                 for (let i = 0; i < numItems; i++) {{
                     const arc = arcs[i];
                     const endAngle = startAngle + arc;
@@ -329,71 +329,80 @@ else:
                     startAngle = endAngle;
                 }}
 
-                // 2. 텍스트 라벨 그리기 (개선된 가시성 로직 적용)
+                // 2. 항목 텍스트 및 외부 지시선 그리기
                 startAngle = currentAngle;
                 for (let i = 0; i < numItems; i++) {{
                     const arc = arcs[i];
                     const midAngle = startAngle + arc / 2;
                     const displayName = `${{itemList[i].name}} (${{itemList[i].prob.toFixed(1)}}%)`;
 
-                    // 부채꼴 각도 비율에 따라 폰트 크기 동적 조절 (최소 8px, 최대 13px)
-                    const fontSize = Math.max(8, Math.min(13, Math.floor(arc * 18)));
+                    // 부채꼴의 물리적 호 길이(width) 계산
+                    // 텍스트를 내부에 포함할 수 있는지 판단하는 핵심 기준
+                    const availableWidthAtRadius = radius * 0.65 * arc;
 
-                    if (arc >= 0.15) {{ // 원판 내부 표시
+                    ctx.font = "bold 11px sans-serif";
+                    const textWidth = ctx.measureText(displayName).width;
+
+                    // 부채꼴 공간이 텍스트 너비보다 넓고 각도(arc)가 충분할 때만 내부에 그리기
+                    const canFitInside = (availableWidthAtRadius > textWidth + 10) && (arc >= 0.4);
+
+                    if (canFitInside) {{
+                        // 내부 표기
                         ctx.save();
-                        ctx.translate(centerX + Math.cos(midAngle) * (radius * 0.6), centerY + Math.sin(midAngle) * (radius * 0.6));
+                        ctx.translate(centerX + Math.cos(midAngle) * (radius * 0.65), centerY + Math.sin(midAngle) * (radius * 0.65));
                         ctx.rotate(midAngle + Math.PI / 2);
                         
-                        ctx.font = `bold ${{fontSize}}px sans-serif`;
-                        
-                        let text = displayName;
-                        // 공간이 좁을 경우 줄임표 처리
-                        if (arc < 0.35 && text.length > 8) {{
-                            text = text.substring(0, 6) + "..";
-                        }}
-
-                        const textWidth = ctx.measureText(text).width;
-
-                        // 글자가 원판 색상에 묻히지 않도록 배경 박스 그리기
-                        ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-                        ctx.fillRect(-textWidth / 2 - 3, -fontSize / 2 - 2, textWidth + 6, fontSize + 4);
-
-                        // 글자 출력
-                        ctx.fillStyle = "#111111";
-                        ctx.textAlign = "center";
-                        ctx.textBaseline = "middle";
-                        ctx.fillText(text, 0, 0);
+                        ctx.fillStyle = "#ffffff";
+                        ctx.strokeStyle = "#000000";
+                        ctx.lineWidth = 2.5;
+                        ctx.strokeText(displayName, -textWidth / 2, 0);
+                        ctx.fillText(displayName, -textWidth / 2, 0);
                         ctx.restore();
 
-                    }} else {{ // 아주 좁은 구역(확률이 매우 적을 때)은 외부 지시선 처리
-                        const lineStartX = centerX + Math.cos(midAngle) * (radius - 5);
-                        const lineStartY = centerY + Math.sin(midAngle) * (radius - 5);
-                        const lineEndX = centerX + Math.cos(midAngle) * (radius + 22);
-                        const lineEndY = centerY + Math.sin(midAngle) * (radius + 22);
+                    }} else {{
+                        // 범위를 넘어서는 글씨는 밖으로 빼서 선으로 연결
+                        const lineStartX = centerX + Math.cos(midAngle) * (radius - 10);
+                        const lineStartY = centerY + Math.sin(midAngle) * (radius - 10);
+                        const lineEndX = centerX + Math.cos(midAngle) * (radius + 20);
+                        const lineEndY = centerY + Math.sin(midAngle) * (radius + 20);
 
+                        // 지시선 그리기
                         ctx.beginPath();
-                        ctx.strokeStyle = "#222222";
+                        ctx.strokeStyle = "#333333";
                         ctx.lineWidth = 1.5;
                         ctx.moveTo(lineStartX, lineStartY);
                         ctx.lineTo(lineEndX, lineEndY);
                         ctx.stroke();
 
+                        // 지시선 끝점에 정갈한 점 표시
+                        ctx.beginPath();
+                        ctx.arc(lineStartX, lineStartY, 3, 0, 2 * Math.PI);
+                        ctx.fillStyle = "#333333";
+                        ctx.fill();
+
                         ctx.save();
                         ctx.font = "bold 11px sans-serif";
                         
                         const isRightSide = Math.cos(midAngle) >= 0;
-                        const textX = lineEndX + (isRightSide ? 5 : -5);
+                        const textX = lineEndX + (isRightSide ? 6 : -6);
                         const textY = lineEndY;
 
-                        const textWidth = ctx.measureText(displayName).width;
-
-                        // 외부 라벨 배경
+                        // 바깥 배경 상자
                         ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
                         ctx.fillRect(
-                            isRightSide ? textX - 2 : textX - textWidth - 2, 
+                            isRightSide ? textX - 2 : textX - textWidth - 4, 
                             textY - 8, 
-                            textWidth + 4, 
-                            14
+                            textWidth + 6, 
+                            16
+                        );
+
+                        ctx.strokeStyle = "#cccccc";
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(
+                            isRightSide ? textX - 2 : textX - textWidth - 4, 
+                            textY - 8, 
+                            textWidth + 6, 
+                            16
                         );
 
                         ctx.fillStyle = "#111111";
